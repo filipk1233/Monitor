@@ -29,11 +29,8 @@ namespace MonitorImplementation.HoareMonitor
                     {
                         Thread signaledThread = signalQueue.Dequeue();
                         hoareMonitorImp.monitorQueue.Enqueue(signaledThread);
-
                         hoareMonitorImp.currentThread = signaledThread;
                         Monitor.Pulse(this);
-
-                        Monitor.Wait(this);
                     }
                 }
             }
@@ -44,10 +41,7 @@ namespace MonitorImplementation.HoareMonitor
                 {
                     signalQueue.Enqueue(Thread.CurrentThread);
                     hoareMonitorImp.currentThread = null;
-                    Monitor.Pulse(this);
-
                     Monitor.Wait(this);
-                    hoareMonitorImp.currentThread = Thread.CurrentThread;
                 }
             }
 
@@ -96,12 +90,8 @@ namespace MonitorImplementation.HoareMonitor
                 lock (this)
                 {
                     conditionQueue.Enqueue(Thread.CurrentThread);
-
                     hoareMonitorImp.currentThread = null;
-                    Monitor.Pulse(this);
-
                     Monitor.Wait(this);
-                    hoareMonitorImp.currentThread = Thread.CurrentThread;
                 }
             }
             public bool Await()
