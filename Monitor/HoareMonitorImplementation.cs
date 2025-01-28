@@ -7,14 +7,34 @@ namespace MonitorImplementation.HoareMonitor
 {
     public abstract class HoareMonitorImplementation : HoareMonitor
     {
-        private Thread? currentThread;
+        protected bool isEntered = false;
+
         private Queue<Thread> monitorQueue = new();
 
-        protected class Signal : ISignal
+        protected void enterMonitorSection()
         {
+            Monitor.Enter(this);
+            isEntered = true;
+        }
+
+        protected void exitHoareMonitorSection()
+        {
+            if (isEntered)
+            {
+                isEntered = false;
+                Monitor.Exit(this);
+                Monitor.Pulse(this);
+            }
+        }
+
+        protected class Signal : ISignal, IDisposable
+        {
+            private bool _disposed = false;
             private Queue<Thread> signalQueue = new();
 
             private HoareMonitorImplementation hoareMonitorImp;
+
+            private AutoResetEvent autoResetEvent = new AutoResetEvent(false);
 
             public Signal(HoareMonitorImplementation monitor)
             {
@@ -27,10 +47,8 @@ namespace MonitorImplementation.HoareMonitor
                 {
                     if (signalQueue.Count > 0)
                     {
-                        Thread signaledThread = signalQueue.Dequeue();
-                        hoareMonitorImp.monitorQueue.Enqueue(signaledThread);
-                        hoareMonitorImp.currentThread = signaledThread;
-                        Monitor.Pulse(this);
+                        hoareMonitorImp.addToQueue(signalQueue.Dequeue());
+                        autoResetEvent.Set();
                     }
                 }
             }
@@ -40,8 +58,9 @@ namespace MonitorImplementation.HoareMonitor
                 lock (this)
                 {
                     signalQueue.Enqueue(Thread.CurrentThread);
-                    hoareMonitorImp.currentThread = null;
-                    Monitor.Wait(this);
+                    hoareMonitorImp.enterMonitorSection();
+                    autoResetEvent.WaitOne();
+                    hoareMonitorImp.exitHoareMonitorSection();
                 }
             }
 
@@ -49,7 +68,7 @@ namespace MonitorImplementation.HoareMonitor
             {
                 lock (this)
                 {
-                    if (hoareMonitorImp.monitorQueue.Count > 0)
+                    if (signalQueue.Count > 0)
                     {
                         return true;
                     }
@@ -58,6 +77,28 @@ namespace MonitorImplementation.HoareMonitor
                         return false;
                     }
                 }
+            }
+
+            public void Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            protected virtual void Dispose(bool disposing)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                if (disposing)
+                {
+                    autoResetEvent.Dispose();
+                    signalQueue.Clear();
+                }
+
+                _disposed = true;
             }
         }
 
@@ -78,9 +119,7 @@ namespace MonitorImplementation.HoareMonitor
                 {
                     if (conditionQueue.Count > 0)
                     {
-                        Thread waitingThread = conditionQueue.Dequeue();
-                        hoareMonitorImp.monitorQueue.Enqueue(waitingThread);
-                        Monitor.Pulse(this);
+
                     }
                 }
             }
@@ -89,16 +128,14 @@ namespace MonitorImplementation.HoareMonitor
             {
                 lock (this)
                 {
-                    conditionQueue.Enqueue(Thread.CurrentThread);
-                    hoareMonitorImp.currentThread = null;
-                    Monitor.Wait(this);
+
                 }
             }
             public bool Await()
             {
                 lock (this)
                 {
-                    if (hoareMonitorImp.monitorQueue.Count > 0)
+                    if (conditionQueue.Count > 0)
                     {
                         return true;
                     }
@@ -108,8 +145,14 @@ namespace MonitorImplementation.HoareMonitor
                     }
                 }
             }
+
+            public void Dispose()
+            {
+                throw new NotImplementedException();
+            }
         }
-        protected void AddThreadToTheQueue(Thread thread)
+
+        protected void addToQueue(Thread thread)
         {
             monitorQueue.Enqueue(thread);
         }
