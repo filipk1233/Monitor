@@ -2,7 +2,7 @@
 {
     public abstract class HoareMonitor
     {
-        protected interface ISignal : IDisposable
+        public interface ISignal : IDisposable
         {
             /// <summary>
             /// A thread that changes the state of the monitor in a way that might allow a waiting thread to proceed will signal the <see cref="ISignal"/> variable and, 

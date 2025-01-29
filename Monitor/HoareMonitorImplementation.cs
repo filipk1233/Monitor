@@ -5,11 +5,11 @@ using System.Threading;
 
 namespace MonitorImplementation.HoareMonitor
 {
-    public abstract class HoareMonitorImplementation : HoareMonitor
+    public abstract class HoareMonitorImplementation : HoareMonitor, IDisposable
     {
         protected bool isEntered = false;
-
         private Queue<Thread> monitorQueue = new();
+        private bool disposedValue;
 
         protected void enterMonitorSection()
         {
@@ -27,7 +27,7 @@ namespace MonitorImplementation.HoareMonitor
             }
         }
 
-        protected class Signal : ISignal, IDisposable
+        public class Signal : ISignal, IDisposable
         {
             private bool _disposed = false;
             private Queue<Thread> signalQueue = new();
@@ -165,6 +165,24 @@ namespace MonitorImplementation.HoareMonitor
         protected override ICondition GetCondition()
         {
             return new Condition(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    monitorQueue.Clear();
+                }
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }
